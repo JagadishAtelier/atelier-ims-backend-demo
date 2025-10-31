@@ -9,7 +9,7 @@ export const createPatientSchema = z.object({
 
   last_name: z
     .string({ required_error: "Last name is required" })
-    .min(2, "Last name must be at least 2 characters")
+    .min(1, "Last name must be at least 1 characters")
     .max(100, "Last name cannot exceed 100 characters"),
 
   email: z
@@ -35,7 +35,7 @@ export const createPatientSchema = z.object({
   age: z
     .number({ required_error: "Age is required" })
     .int("Age must be an integer")
-    .positive("Age must be greater than 0"),
+    .positive("Age must be greater than 0").optional(),
 
   address: z
     .string({ required_error: "Address is required" })

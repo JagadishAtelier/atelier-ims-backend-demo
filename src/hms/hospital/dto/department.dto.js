@@ -43,4 +43,3 @@ export const updateDepartmentSchema = z.object({
   updated_by_name: z.string().optional(),
   updated_by_email: z.string().email().optional(),
 });
-

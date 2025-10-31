@@ -1,6 +1,7 @@
 import { sequelize } from "../../../db/index.js";
 import Beds from "../models/beds.models.js";
 import Room from "../models/rooms.models.js";
+import Ward from "../models/wards.models.js"
 import "../models/index.js";
 
 const bedService = {
@@ -72,7 +73,9 @@ const bedService = {
       offset,
       limit: Number(limit),
       order: [[sort_by, sort_order]],
-      include: [{ model: Room, as: "room" }],
+      include: [{ model: Room, as: "room",
+        include:[{model: Ward, as:"ward"}]
+       }],
     });
 
     return {

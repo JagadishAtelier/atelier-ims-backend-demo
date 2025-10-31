@@ -109,6 +109,14 @@ const doctorSchedulesService = {
     return schedule;
   },
 
+  async getByDoctorId(id) {
+    const schedule = await DoctorSchedules.findOne({
+      where: { doctor_id: id, is_active: true },
+    });
+    if (!schedule) throw new Error("Doctor schedule not found");
+    return schedule;
+  },
+
   /**
    * ✅ Update Doctor Schedule
    */

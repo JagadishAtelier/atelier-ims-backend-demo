@@ -12,8 +12,8 @@ export const createAdmissionSchema = z.object({
     .optional(),
 
   admitted_by: z
-    .string({ required_error: "Admitted by (user ID) is required" })
-    .uuid("Invalid user ID format"),
+    .string({ })
+    .uuid("Invalid user ID format").optional(),
 
   reason: z
     .string({ required_error: "Admission reason is required" })
@@ -70,7 +70,7 @@ export const dischargeAdmissionSchema = z.object({
 
   discharge_by: z
     .string({ required_error: "Discharged by (user ID) is required" })
-    .uuid("Invalid user ID format"),
+    .uuid("Invalid user ID format").optional(),
 
   discharge_reason: z
     .string({ required_error: "Discharge reason is required" })

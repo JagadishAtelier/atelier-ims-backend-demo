@@ -16,7 +16,7 @@ const router = express.Router();
  */
 router.post(
   "/admission",
-  verifyToken(["Doctor", "Admin", "Super Admin"]),
+  verifyToken(["Doctor","Receptionist", "Admin", "Super Admin"]),
   validate(createAdmissionSchema),
   admissionsController.create
 );
@@ -50,7 +50,7 @@ router.put(
  */
 router.put(
   "/admission/:id/discharge",
-  verifyToken(["Doctor", "Admin", "Super Admin"]),
+  verifyToken(["Doctor", "Receptionist", "Admin", "Super Admin"]),
   validate(dischargeAdmissionSchema),
   admissionsController.discharge
 );

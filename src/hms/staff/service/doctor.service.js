@@ -54,6 +54,7 @@ const doctorService = {
 
       // 3️⃣ Create Doctor
       doctorData.staff_profile_id = staffProfileId;
+      doctorData.doctor_name = `${staffData.first_name} ${staffData.last_name}`;
       const doctor = await Doctor.create(doctorData, { transaction: t });
 
       // 4️⃣ Return full created doctor (with staffProfileId and endUserId)

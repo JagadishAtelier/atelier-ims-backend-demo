@@ -39,6 +39,13 @@ router.get(
   doctorSchedulesController.getById
 );
 
+
+router.get(
+  "/doctor-schedule/doctor/:id",
+  verifyToken(),
+  doctorSchedulesController.getByDoctorId
+);
+
 /**
  * ✅ Update Doctor Schedule
  */

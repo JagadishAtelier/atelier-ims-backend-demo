@@ -3,7 +3,7 @@ import Patients from "../models/patients.models.js";
 import EndUsers from "../../../user/models/user.model.js";
 import bcrypt from "bcrypt";
 import { Op } from "sequelize";
-import "../models/index.js"
+import "../models/index.js";
 import Encounters from "../../clinical/models/encounters.models.js"; // if encounters model sits beside patients
 import Appointments from "../../appointments/models/appointments.models.js"; // adjust if different
 import Vitals from "../../clinical/models/vitals.models.js";
@@ -14,10 +14,42 @@ import LabTestOrders from "../../laboratory/models/labtestorders.models.js";
 import LabTestOrderItems from "../../laboratory/models/labtestordersiteams.models.js";
 import Room from "../../admissions/models/rooms.models.js";
 
+//
+// Helper: calculate years from dob (string or Date). Returns integer >= 0 or null if invalid
+//
+function calculateAge(dob) {
+  if (!dob) return null;
+  const birth = typeof dob === "string" ? new Date(dob) : dob;
+  if (!(birth instanceof Date) || isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let years = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    years--;
+  }
+  return years >= 0 ? years : 0;
+}
+
 const patientService = {
+  /**
+   * Create patient and linked EndUser within a transaction.
+   * Automatically calculates age from dob (if provided).
+   *
+   * @param {Object} param0
+   * @param {Object} param0.patientData - patient payload
+   * @param {string} param0.password - plaintext password for linked EndUser
+   */
   async create({ patientData, password }) {
     if (!patientData || !password) {
       throw new Error("Patient data and password are required");
+    }
+
+    // If dob provided, auto-calc age (overwrites incoming age)
+    if (patientData.dob) {
+      const calculated = calculateAge(patientData.dob);
+      if (calculated !== null) {
+        patientData.age = calculated;
+      }
     }
 
     return await sequelize.transaction(async (t) => {
@@ -45,7 +77,7 @@ const patientService = {
         });
 
         const lastCodeNumber = lastPatient
-          ? parseInt(lastPatient.patient_code.replace("PAT-", "")) || 1000
+          ? parseInt((lastPatient.patient_code || "").replace("PAT-", ""), 10) || 1000
           : 1000;
 
         patientData.patient_code = `PAT-${lastCodeNumber + 1}`;
@@ -65,7 +97,7 @@ const patientService = {
   },
 
   /**
-   * ✅ Get all patients with filters and pagination
+   * Get all patients with filters and pagination
    */
   async getAll(options = {}) {
     const {
@@ -81,7 +113,10 @@ const patientService = {
     const where = {};
 
     if (search) {
-      where.first_name = { [sequelize.Op.like]: `%${search}%` };
+      // simple search on first_name (you can expand to include last_name/email/phone)
+      where.first_name = { [Op.like]: `%${search}%` };
+      where.phone = {[Op.like]: `%${search}%`};
+      where.id = {[Op.like]: `%${search}%`}
     }
 
     if (is_active !== undefined) {
@@ -111,7 +146,7 @@ const patientService = {
   },
 
   /**
-   * ✅ Get single patient by ID
+   * Get single patient by ID
    */
   async getById(id) {
     const patient = await Patients.findByPk(id, {
@@ -128,6 +163,9 @@ const patientService = {
     return patient;
   },
 
+  /**
+   * Get patient history (encounters, appointments, vitals, admissions, diagnoses, notes, lab orders)
+   */
   async getHistory(patientId, options = {}) {
     if (!patientId) throw new Error("patientId is required");
 
@@ -191,9 +229,10 @@ const patientService = {
         limit,
         include: [
           {
-             model: Room, as: "room" 
-          }
-        ]
+            model: Room,
+            as: "room",
+          },
+        ],
       }),
 
       // Diagnoses (linked by encounter_id)
@@ -241,18 +280,27 @@ const patientService = {
   },
 
   /**
-   * ✅ Update patient details
+   * Update patient details
+   * If dob present in update payload, recalc age automatically.
    */
   async update(id, data) {
     const patient = await Patients.findByPk(id);
     if (!patient) throw new Error("Patient not found");
+
+    // if dob present in update payload, recalc age
+    if (data.dob) {
+      const calculated = calculateAge(data.dob);
+      if (calculated !== null) {
+        data.age = calculated;
+      }
+    }
 
     await patient.update(data);
     return patient;
   },
 
   /**
-   * ✅ Soft delete patient
+   * Soft delete patient
    */
   async delete(id, userInfo = {}) {
     const patient = await Patients.findByPk(id);
@@ -269,7 +317,7 @@ const patientService = {
   },
 
   /**
-   * ✅ Restore soft-deleted patient
+   * Restore soft-deleted patient
    */
   async restore(id, userInfo = {}) {
     const patient = await Patients.findByPk(id);

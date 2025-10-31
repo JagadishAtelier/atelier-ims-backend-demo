@@ -13,15 +13,18 @@ const admissionsController = {
   async create(req, res) {
     try {
       const validatedData = await parseZodSchema(createAdmissionSchema, req.body);
-
+      console.log("user: ",req.user)
       const admissionData = {
         ...validatedData,
+        admitted_by: req.user?.id,
         created_by: req.user?.id,
         created_by_name: req.user?.username,
         created_by_email: req.user?.email,
       };
+      console.log("admissionData",admissionData)
 
-      const result = await admissionsService.create(admissionData);
+      const result = await admissionsService.create(admissionData, req.user);
+
       return res.sendSuccess(result, "Patient admitted successfully");
     } catch (error) {
       return res.sendError(error.message || "Failed to admit patient");
@@ -86,6 +89,7 @@ const admissionsController = {
 
       const dischargeData = {
         ...validatedData,
+        discharge_by: req.user?.id,
         updated_by: req.user?.id,
         updated_by_name: req.user?.username,
         updated_by_email: req.user?.email,

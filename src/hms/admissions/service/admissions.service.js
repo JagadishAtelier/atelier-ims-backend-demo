@@ -16,7 +16,6 @@ const admissionService = {
   try {
     // 🧩 Basic validations
     if (!data.patient_id) throw new Error("patient_id is required");
-    if (!data.admitted_by) throw new Error("admitted_by is required");
     if (!data.reason) throw new Error("reason is required");
     if (!data.bed_id) throw new Error("bed_id is required");
 
@@ -174,7 +173,7 @@ const admissionService = {
       await admission.update(
         {
           discharge_datetime: dischargeData.discharge_datetime || new Date(),
-          discharge_by: dischargeData.discharge_by,
+          discharge_by: userInfo.id,
           discharge_reason: dischargeData.discharge_reason,
           final_diagnosis: dischargeData.final_diagnosis,
           status: "discharged",

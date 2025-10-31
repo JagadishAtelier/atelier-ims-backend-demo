@@ -53,6 +53,19 @@ const doctorSchedulesController = {
   },
 
   /**
+   * ✅ Get doctor schedule by Doctor ID
+   */
+  async getByDoctorId(req, res) {
+    try {
+      const { id } = req.params; // doctor_id
+      const schedule = await doctorSchedulesService.getByDoctorId(id);
+      return res.sendSuccess(schedule, "Doctor schedule fetched successfully by doctor ID");
+    } catch (error) {
+      return res.sendError(error.message || "Failed to fetch doctor schedule by doctor ID");
+    }
+  },
+
+  /**
    * ✅ Update doctor schedule
    */
   async update(req, res) {
