@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import responseHelper from './middleware/responseHelper.js';
 import userRoutes from './user/routes/index.js';
 import hmsRoutes from './hms/index.js';
+import imsRoutes from './ims/index.js';
 
 
 const app = express();
@@ -32,6 +33,7 @@ app.get('/api/error', (req, res) => {
 //routes
 app.use('/api/v1/', userRoutes);
 app.use('/api/v1/', hmsRoutes);
+app.use('/api/v1/', imsRoutes);
 
 
 
