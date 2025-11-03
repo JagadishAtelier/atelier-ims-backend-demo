@@ -69,7 +69,8 @@ export const createBillingSchema = z.object({
     .enum(["pending", "paid", "partial", "cancelled"])
     .default("pending"),
   status: z
-    .enum(["pending", "paid", "partially_paid", "cancelled"]),
+    .enum(["prescriptions","pending", "paid", "partially_paid", "cancelled"])
+    .default("prescriptions"),
   payment_method: z
     .enum(["cash", "card", "upi", "netbanking"])
     .optional(),

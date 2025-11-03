@@ -1,4 +1,4 @@
-import { sequelize } from '../../db/index.js';
+import { sequelize } from '../../../db/index.js';
 import { DataTypes } from 'sequelize';
 import Order from '../../order/models/order.models.js';
 import Vendor from '../../vendor/models/vendor.models.js';

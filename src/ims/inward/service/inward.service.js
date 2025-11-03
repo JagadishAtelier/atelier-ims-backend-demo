@@ -1,6 +1,6 @@
 // services/inward.service.js
 import { Op } from "sequelize";
-import { sequelize } from "../../db/index.js"; // your sequelize instance
+import { sequelize } from "../../../db/index.js"; // your sequelize instance
 import Inward from "../models/inward.model.js";
 import InwardItem from "../models/inwarditeam.model.js";
 import Product from '../../product/models/product.model.js';

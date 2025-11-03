@@ -1,4 +1,4 @@
-import { sequelize } from '../../db/index.js';
+import { sequelize } from '../../../db/index.js';
 import Product from '../../product/models/product.model.js';
 import Order from "../models/order.models.js";
 import OrderItem from "../models/orderiteam.models.js";
@@ -92,7 +92,7 @@ const orderService = {
     const createdOrder = await Order.findByPk(order.id, {
       include: [
         { model: Vendor, as: "vendor" },
-        { model: OrderItem, as: "items", include: ["product"] },
+        { model: OrderItem, as: "items", include: ["products"] },
       ],
     });
 
@@ -121,7 +121,7 @@ const orderService = {
       where,
       include: [
         { model: Vendor, as: "vendor" },
-        { model: OrderItem, as: "items", include: ["product"] },
+        { model: OrderItem, as: "items", include: ["products"] },
       ],
       order: [["createdAt", "DESC"]],
       limit,
@@ -141,7 +141,7 @@ const orderService = {
     const order = await Order.findByPk(id, {
       include: [
         { model: Vendor, as: "vendor" },
-        { model: OrderItem, as: "items", include: ["product"] },
+        { model: OrderItem, as: "items", include: ["products"] },
       ],
     });
 
@@ -253,7 +253,7 @@ const orderService = {
     const updatedOrder = await Order.findByPk(order.id, {
       include: [
         { model: Vendor, as: "vendor" },
-        { model: OrderItem, as: "items", include: ["product"] },
+        { model: OrderItem, as: "items", include: ["products"] },
       ],
     });
 

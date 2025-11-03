@@ -1,6 +1,6 @@
 // services/billing.service.js
 import { Op } from "sequelize";
-import { sequelize } from "../../db/index.js";
+import { sequelize } from "../../../db/index.js";
 import Billing from "../models/billing.models.js";
 import BillingItem from "../models/billingiteam.models.js";
 import Product from "../../product/models/product.model.js";

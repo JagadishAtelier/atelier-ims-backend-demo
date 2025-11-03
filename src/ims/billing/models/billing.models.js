@@ -1,4 +1,4 @@
-import { sequelize } from '../../db/index.js';
+import { sequelize } from '../../../db/index.js';
 import { DataTypes } from 'sequelize';
 
 const Billing = sequelize.define("Billing", {
@@ -35,7 +35,7 @@ const Billing = sequelize.define("Billing", {
     defaultValue: 'cash',
   },
   status: {
-    type: DataTypes.ENUM('pending','paid','partially_paid','cancelled'),
+    type: DataTypes.ENUM('prescriptions','pending','paid','partially_paid','cancelled'),
     allowNull: false,
   },
   notes: { type: DataTypes.TEXT, allowNull: true },
