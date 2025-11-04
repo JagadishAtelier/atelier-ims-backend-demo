@@ -258,6 +258,236 @@ async getBillingById(id) {
   });
 },
 
+async updateBillingWithItems(id, data) {
+    return await sequelize.transaction(async (t) => {
+      // fetch existing billing and items
+      const billing = await Billing.findByPk(id, {
+        include: [{ model: BillingItem, as: "items" }],
+        transaction: t,
+      });
+      if (!billing) return null;
+
+      // Step 1: If billing has items and we will replace them, reverse their effects
+      if (billing.items && billing.items.length > 0 && Array.isArray(data.items)) {
+        for (const oldItem of billing.items) {
+          const productId = oldItem.product_id;
+          const qtyToRestore = Number(oldItem.quantity || 0);
+
+          // Restore Stock: increase quantity, decrease billing_quantity
+          const stock = await Stock.findOne({ where: { product_id: productId }, transaction: t });
+          if (stock) {
+            const newQty = Number(stock.quantity || 0) + qtyToRestore;
+            const newBillingQty = Math.max(Number(stock.billing_quantity || 0) - qtyToRestore, 0);
+            await stock.update({ quantity: newQty, billing_quantity: newBillingQty }, { transaction: t });
+          }
+
+          // Restore InwardItem allocations:
+          // Attempt to reverse by consuming inwardItem.billing_quantity from newest ones (reverse of FIFO)
+          let remaining = qtyToRestore;
+          const inwardItems = await InwardItem.findAll({
+            where: {
+              product_id: productId,
+              billing_quantity: { [Op.gt]: 0 },
+            },
+            order: [["createdAt", "DESC"]], // newest first
+            transaction: t,
+          });
+
+          for (const ii of inwardItems) {
+            if (remaining <= 0) break;
+            const used = Number(ii.billing_quantity || 0);
+            if (used <= 0) continue;
+
+            const toReturn = Math.min(used, remaining);
+            const newBillingQty = Math.max(used - toReturn, 0);
+            const newUnused = Number(ii.unused_quantity || 0) + toReturn;
+
+            await ii.update({ billing_quantity: newBillingQty, unused_quantity: newUnused }, { transaction: t });
+
+            // update parent inward totals
+            if (ii.inward_id) {
+              const parent = await Inward.findByPk(ii.inward_id, { transaction: t });
+              if (parent) {
+                const updatedTotalUnused = (parent.total_unused_quantity || 0) + toReturn;
+                const updatedTotalBilling = Math.max((parent.total_billing_quantity || 0) - toReturn, 0);
+                await parent.update(
+                  {
+                    total_unused_quantity: updatedTotalUnused,
+                    total_billing_quantity: updatedTotalBilling,
+                  },
+                  { transaction: t }
+                );
+              }
+            }
+
+            remaining -= toReturn;
+          }
+
+          // If remaining > 0 we couldn't fully reverse (warn but continue)
+          if (remaining > 0) {
+            // Not throwing to avoid breaking whole update; log for debugging
+            console.warn(`Warning: Could not fully restore inward allocations for product ${productId}. Remaining: ${remaining}`);
+          }
+        }
+
+        // Remove old billing items
+        await BillingItem.destroy({ where: { billing_id: billing.id }, transaction: t });
+      }
+
+      // Step 2: If new items provided, allocate them like in create
+      let subtotal = 0;
+      let totalQuantity = 0;
+      const itemsToCreate = [];
+      const inwardIdsUsed = [];
+
+      if (Array.isArray(data.items) && data.items.length > 0) {
+        for (const item of data.items) {
+          const product = await Product.findByPk(item.product_id, { transaction: t });
+          if (!product) throw new Error(`Product with ID ${item.product_id} not found`);
+
+          let remainingQty = Number(item.quantity || 0);
+          if (remainingQty <= 0) throw new Error("Invalid quantity in new items");
+
+          let totalCost = 0;
+          const usedInwardItemIds = [];
+
+          const inwardItems = await InwardItem.findAll({
+            where: {
+              product_id: item.product_id,
+              unused_quantity: { [Op.gt]: 0 },
+            },
+            order: [["createdAt", "ASC"]],
+            transaction: t,
+          });
+
+          for (const inwardItem of inwardItems) {
+            if (remainingQty <= 0) break;
+            const available = Number(inwardItem.unused_quantity || 0);
+            if (available <= 0) continue;
+
+            const takeQty = Math.min(available, remainingQty);
+
+            const newUnused = available - takeQty;
+            const newBillingQty = (Number(inwardItem.billing_quantity || 0) + takeQty);
+
+            await inwardItem.update(
+              {
+                unused_quantity: newUnused,
+                billing_quantity: newBillingQty,
+              },
+              { transaction: t }
+            );
+
+            if (inwardItem.inward_id) {
+              const parentInward = await Inward.findByPk(inwardItem.inward_id, { transaction: t });
+              if (parentInward) {
+                const newTotalUnused = Math.max((parentInward.total_unused_quantity || 0) - takeQty, 0);
+                const newTotalBilling = (parentInward.total_billing_quantity || 0) + takeQty;
+
+                await parentInward.update(
+                  {
+                    total_unused_quantity: newTotalUnused,
+                    total_billing_quantity: newTotalBilling,
+                  },
+                  { transaction: t }
+                );
+
+                inwardIdsUsed.push(parentInward.id);
+              }
+            }
+
+            totalCost += takeQty * Number(inwardItem.unit_price || 0);
+            usedInwardItemIds.push({ inward_item_id: inwardItem.id, quantity: takeQty, inward_id: inwardItem.inward_id ?? null });
+
+            remainingQty -= takeQty;
+          }
+
+          if (remainingQty > 0) {
+            throw new Error(`Insufficient stock (unused quantity) for product ${item.product_id}`);
+          }
+
+          // update Stock
+          const stock = await Stock.findOne({
+            where: { product_id: item.product_id },
+            transaction: t,
+          });
+          if (!stock) throw new Error(`Stock not found for product ${product.product_name}`);
+
+          const newStockQty = Math.max(Number(stock.quantity || 0) - item.quantity, 0);
+          const newBillingQty = (Number(stock.billing_quantity || 0) + item.quantity);
+
+          await stock.update(
+            {
+              quantity: newStockQty,
+              billing_quantity: newBillingQty,
+            },
+            { transaction: t }
+          );
+
+          // compute pricing
+          const totalPrice = totalCost;
+          const unitPrice = totalCost / item.quantity;
+          subtotal += totalPrice;
+          totalQuantity += item.quantity;
+
+          itemsToCreate.push({
+            product_id: item.product_id,
+            quantity: item.quantity,
+            unit_price: unitPrice,
+            discount_amount: item.discount_amount || 0,
+            tax_amount: item.tax_amount || 0,
+            total_price: totalPrice,
+            inward_item_allocations: usedInwardItemIds,
+          });
+        }
+
+        // bulk create new billing items
+        const itemsWithBillingId = itemsToCreate.map((it) => ({ ...it, billing_id: billing.id }));
+        await BillingItem.bulkCreate(itemsWithBillingId, { transaction: t });
+      } else {
+        // if no items in payload, keep existing totals (unless user provided overrides)
+        subtotal = data.subtotal_amount ?? billing.subtotal_amount ?? 0;
+        totalQuantity = data.total_quantity ?? billing.total_quantity ?? 0;
+      }
+
+      // Step 3: Update billing top-level fields
+      // compute totals (allow overrides from data)
+      const discountAmount = data.discount_amount ?? billing.discount_amount ?? 0;
+      const taxAmount = data.tax_amount ?? billing.tax_amount ?? 0;
+      const totalAmount = (Array.isArray(data.items) && data.items.length > 0) ? (subtotal - discountAmount + taxAmount) : (data.total_amount ?? billing.total_amount);
+      const paidAmount = data.paid_amount ?? billing.paid_amount ?? 0;
+      const dueAmount = totalAmount - paidAmount;
+
+      const updatePayload = {
+        customer_name: data.customer_name ?? billing.customer_name,
+        type: data.type ?? billing.type,
+        billing_date: data.billing_date ?? billing.billing_date,
+        inward_id: Array.from(new Set([...(billing.inward_id || []), ...inwardIdsUsed])), // merge previous with newly used parent inward ids
+        total_quantity: totalQuantity,
+        subtotal_amount: subtotal,
+        discount_amount: discountAmount,
+        tax_amount: taxAmount,
+        total_amount: totalAmount,
+        paid_amount: paidAmount,
+        due_amount: dueAmount,
+        payment_method: data.payment_method ?? billing.payment_method,
+        status: data.status ?? billing.status,
+        counter_no: data.counter_no ?? billing.counter_no,
+        notes: data.notes ?? billing.notes,
+        updated_by: data.updated_by ?? billing.updated_by,
+        updated_by_name: data.updated_by_name ?? billing.updated_by_name,
+        updated_by_email: data.updated_by_email ?? billing.updated_by_email,
+      };
+
+      await billing.update(updatePayload, { transaction: t });
+
+      // Return updated billing with items
+      return await Billing.findByPk(billing.id, {
+        include: [{ model: BillingItem, as: "items" }],
+        transaction: t,
+      });
+    });
+  },
 
   // ✅ Delete Billing (soft delete)
   async deleteBilling(id, user) {

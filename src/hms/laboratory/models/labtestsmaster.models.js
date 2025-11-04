@@ -31,6 +31,11 @@ const LabTestsMaster = sequelize.define(
             type: DataTypes.STRING(100),
             allowNull: false,
         },
+        amount: {
+            type: DataTypes.FLOAT,
+            allowNull: false,
+            defaultValue: 500.0,
+        },
         reference_range: {
             type: DataTypes.STRING(255),
             allowNull: false,
