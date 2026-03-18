@@ -128,6 +128,18 @@ async getHistory(req, res) {
       return res.sendError(err.message || "Failed to restore patient");
     }
   },
+
+  async getByEmailOrPhone(req, res) {
+  try {
+    const { email, phone } = req.body;
+
+    const patient = await patientService.getByEmailOrPhone({ email, phone });
+
+    return res.sendSuccess(patient, "Patient fetched successfully");
+  } catch (err) {
+    return res.sendError(err.message || "Failed to fetch patient");
+  }
+}
 };
 
 export default patientController;

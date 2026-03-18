@@ -5,7 +5,6 @@ import { validate } from "../../../middleware/validate.js";
 import { createPatientSchema, updatePatientSchema } from "../dto/patients.dto.js";
 
 const router = express.Router();
-
 /**
  * ✅ Create Patient
  * Roles allowed: Admin, Receptionist, Super Admin
@@ -15,6 +14,10 @@ router.post(
   verifyToken(["Admin", "Receptionist", "Super Admin"]),
   validate(createPatientSchema),
   patientController.create
+);
+router.post(
+  "/patient/by-contact", verifyToken(),
+  patientController.getByEmailOrPhone
 );
 
 /**
@@ -58,5 +61,7 @@ router.patch(
   verifyToken(["Admin", "Super Admin"]),
   patientController.restore
 );
+
+
 
 export default router;
