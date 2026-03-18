@@ -15,7 +15,7 @@ const router = express.Router();
  */
 router.post(
   "/appointment",
-  verifyToken(["Admin", "Receptionist", "Super Admin"]),
+  verifyToken(["Admin", "Receptionist", "Super Admin","Patient"]),
   validate(createAppointmentSchema),
   appointmentController.create
 );
