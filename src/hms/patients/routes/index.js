@@ -8,5 +8,4 @@ const router = express.Router();
 router.use('/patients', patientRoutes);
 router.use('/patients', patientContactsRoutes);
 router.use('/patients', patientInsuranceRoutes);
-
 export default router;

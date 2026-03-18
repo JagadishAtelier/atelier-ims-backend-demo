@@ -117,7 +117,21 @@ const appointmentController = {
     } catch (error) {
       return res.sendError(error.message || "Failed to fetch available slots");
     }
+  },
+  /**
+ * ✅ Get Appointments by Patient ID
+ */
+async getByPatientId(req, res) {
+  try {
+    const { patientId } = req.params;
+
+    const appointments = await appointmentService.getAppointmentsByPatientId(patientId);
+
+    return res.sendSuccess(appointments, "Appointments fetched successfully");
+  } catch (error) {
+    return res.sendError(error.message || "Failed to fetch appointments");
   }
+}
 };
 
 export default appointmentController;

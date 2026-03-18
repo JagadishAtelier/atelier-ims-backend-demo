@@ -335,6 +335,42 @@ const patientService = {
 
     return { message: "Patient restored successfully" };
   },
+
+  async getByEmailOrPhone({ email, phone }) {
+  if (!email && !phone) {
+    throw new Error("Email or phone is required");
+  }
+
+  const whereConditions = [];
+
+  if (email) whereConditions.push({ email });
+  if (phone) whereConditions.push({ phone });
+
+  const patient = await Patients.findOne({
+    where: {
+      [Op.or]: whereConditions,
+      is_active: true,
+    },
+    include: [
+      {
+        model: EndUsers,
+        as: "endusers",
+        attributes: ["id", "username", "email", "phone", "role"],
+      },
+    ],
+  });
+
+  if (!patient) {
+    throw new Error("Patient not found");
+  }
+
+  return patient;
+}
 };
+
+
+
+
+
 
 export default patientService;

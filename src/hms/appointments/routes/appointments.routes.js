@@ -15,7 +15,7 @@ const router = express.Router();
  */
 router.post(
   "/appointment",
-  verifyToken(["Admin", "Receptionist", "Super Admin"]),
+  verifyToken(["Admin", "Receptionist", "Super Admin","Patient"]),
   validate(createAppointmentSchema),
   appointmentController.create
 );
@@ -25,7 +25,7 @@ router.post(
  * Roles allowed: All authenticated users
  */
 router.get("/appointment", verifyToken(), appointmentController.getAll);
-
+router.get("/appointment/patient/:patientId", verifyToken(), appointmentController.getByPatientId);
 /**
  * ✅ Get Appointment by ID
  */

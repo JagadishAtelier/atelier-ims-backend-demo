@@ -346,6 +346,39 @@ const appointmentsService = {
     throw new Error(error.message || "Unable to fetch today's appointments");
   }
 },
+/**
+ * ✅ Get Appointments by Patient ID
+ */
+async getAppointmentsByPatientId(patientId) {
+  try {
+    if (!patientId) {
+      throw new Error("Patient ID is required");
+    }
+
+    const appointments = await Appointments.findAll({
+      where: {
+        patient_id: patientId,
+        status: { [Op.ne]: "Cancelled" }, // optional
+      },
+      include: [
+        {
+          model: Doctor,
+          as: "doctor",
+        },
+        {
+          model: Patient,
+          as: "patient",
+        },
+      ],
+      order: [["scheduled_at", "DESC"]],
+    });
+
+    return appointments;
+  } catch (error) {
+    console.error("❌ Error fetching appointments by patient ID:", error.message);
+    throw new Error(error.message || "Unable to fetch appointments");
+  }
+}
 };
 
 export default appointmentsService;
