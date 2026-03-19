@@ -5,6 +5,7 @@ import vendorRoutes from './vendor/routes/index.js';
 import inwardRoutes from './inward/routes/index.js';
 import stockRoutes from './stock/routes/index.js';
 import billingRoutes from './billing/routes/index.js';
+import companyRoutes from './Company/Routes/company.routes.js';
 
 const router = express.Router();
 
@@ -14,5 +15,6 @@ router.use('/ims', vendorRoutes);
 router.use('/ims', inwardRoutes);
 router.use('/ims', stockRoutes);
 router.use('/ims', billingRoutes);
+router.use('/ims', companyRoutes);
 
 export default router;
