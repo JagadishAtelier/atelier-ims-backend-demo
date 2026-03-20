@@ -80,7 +80,7 @@ async loginUser({ identifier, password }) {
   // ✅ Set demo period on first login
   if (!user.demo_start) {
     const demoEnd = new Date();
-    demoEnd.setMinutes(now.getMinutes() + 2); // 7 days from now
+    demoEnd.setDate(demoEnd.getDate() + 7); // 7 days
 
     await user.update({
       demo_start: now,
