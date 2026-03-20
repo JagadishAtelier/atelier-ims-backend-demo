@@ -105,6 +105,13 @@ async getUsers(req, res) {
 
 
       const result = await userService.loginUser(data);
+if (result.error) {
+  // Pass demoExpired flag explicitly for frontend
+  return res.status(403).json({ 
+    message: result.message,
+    demoExpired: true
+  });
+}
       res.json({ message: `Login success`, ...result });
     } catch (err) {
       res.status(400).json({ error: err.message });

@@ -22,8 +22,8 @@ const sequelize = new Sequelize("mysql://u265115582_myimsdatabase:Myimsdatabase1
 // import inwardItemSchema from "../ims/inward/models/inwarditeam.model.js";
 // import orderSchema from "../ims/order/models/order.models.js";
 // import orderItemSchema from "../ims/order/models/orderiteam.models.js";
-import returnSchema from "../ims/return/models/return.models.js";
-import returnItemSchema from "../ims/return/models/returniteams.models.js";
+// import returnSchema from "../ims/return/models/return.models.js";
+// import returnItemSchema from "../ims/return/models/returniteams.models.js";
 // import stockSchema from "../ims/stock/models/stock.models.js";
 // import vendorSchema from "../ims/vendor/models/vendor.models.js";
 // const sequelize = new Sequelize("mysql://root:root@localhost/hms");

@@ -63,7 +63,7 @@ async getUsers(company_id) {
   /**
    * ✅ Login user (email or phone)
    */
-  async loginUser({ identifier, password }) {
+async loginUser({ identifier, password }) {
   const user = await User.findOne({
     where: {
       [Op.or]: [{ email: identifier }, { phone: identifier }],
@@ -75,6 +75,30 @@ async getUsers(company_id) {
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) throw new Error("Invalid credentials");
 
+  const now = new Date();
+
+  // ✅ Set demo period on first login
+  if (!user.demo_start) {
+    const demoEnd = new Date();
+    demoEnd.setMinutes(now.getMinutes() + 2); // 7 days from now
+
+    await user.update({
+      demo_start: now,
+      demo_end: demoEnd,
+      demo_expired: false,
+    });
+  } else if (user.demo_end && now > user.demo_end) {
+    // ✅ Mark demo expired if past demo_end
+    if (!user.demo_expired) await user.update({ demo_expired: true });
+      return {
+    demoExpired: true,
+    message: "Your demo period has expired. Please contact support.",
+  };
+  }
+
+  // ✅ Calculate remaining days for frontend
+  const remainingDays = user.demo_end ? Math.ceil((user.demo_end - now) / (1000 * 60 * 60 * 24)) : null;
+
   if (!SECRET_KEY) throw new Error("JWT secret key missing in .env file");
 
   // Create JWT token
@@ -85,6 +109,7 @@ async getUsers(company_id) {
       username: user.username,
       role: user.role,
       company_id: user.company_id,
+      demo_expired: user.demo_expired,
     },
     SECRET_KEY,
     { expiresIn: "7d" }
@@ -92,13 +117,13 @@ async getUsers(company_id) {
 
   await user.update({ token });
 
-  // Strip password before sending response
   const { password: _, ...userWithoutPassword } = user.get({ plain: true });
 
   return {
     message: `${user.role} ${user.username} Login successful`,
     user: userWithoutPassword,
     token,
+    demo_remaining_days: remainingDays, // ✅ added remaining days
   };
 },
 
