@@ -1,4 +1,4 @@
-import { sequelize } from '../../db/index.js';
+import { sequelize } from '../../../db/index.js';
 import { DataTypes } from 'sequelize';
 import Vendor from '../../vendor/models/vendor.models.js';
 import Billing from '../../billing/models/billing.models.js';
@@ -113,6 +113,10 @@ const Return = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+      company_id: {
+    type: DataTypes.UUID,
+    allowNull: false, // you can make true if optional
+  },
   },
   {
     tableName: "returns",

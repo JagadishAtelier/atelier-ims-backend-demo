@@ -81,6 +81,10 @@ const Order = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+      company_id: {
+    type: DataTypes.UUID,
+    allowNull: false, // you can make true if optional
+  },
     deleted_by_name: {
       type: DataTypes.STRING,
       allowNull: true,

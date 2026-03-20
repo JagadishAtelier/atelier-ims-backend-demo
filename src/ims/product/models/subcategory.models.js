@@ -48,6 +48,10 @@ const Subcategory = sequelize.define("Subcategory", {
     type: DataTypes.STRING,
     allowNull: true,
   },
+    company_id: {
+    type: DataTypes.UUID,
+    allowNull: false, // you can make true if optional
+  },
   created_by_email: {
     type: DataTypes.STRING,
     allowNull: true,

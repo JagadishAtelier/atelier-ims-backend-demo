@@ -1,4 +1,4 @@
-import { sequelize } from '../../db/index.js';
+import { sequelize } from '../../../db/index.js';
 import { DataTypes } from 'sequelize';
 import Return from './return.models.js';
 import Product from '../../product/models/product.model.js';
@@ -72,7 +72,10 @@ const ReturnItem = sequelize.define(
       defaultValue: 0.0,
       validate: { min: 0.0 },
     },
-
+  company_id: {
+    type: DataTypes.UUID,
+    allowNull: false, // you can make true if optional
+  },
     reason: {
       type: DataTypes.STRING(255),
       allowNull: true,

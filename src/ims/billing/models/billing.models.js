@@ -7,6 +7,10 @@ const Billing = sequelize.define("Billing", {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
+    company_id: {
+    type: DataTypes.UUID,
+    allowNull: false, // you can make true if optional
+  },
   billing_no: { type: DataTypes.STRING(50), allowNull: false, unique: true },
   customer_name: { type: DataTypes.STRING(100), allowNull: true },
   type: {

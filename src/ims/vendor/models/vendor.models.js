@@ -81,6 +81,10 @@ const Vendor = sequelize.define("Vendor", {
     type: DataTypes.STRING,
     allowNull: true,
   },
+    company_id: {
+    type: DataTypes.UUID,
+    allowNull: false, // you can make true if optional
+  },
   deleted_by_email: {
     type: DataTypes.STRING,
     allowNull: true,

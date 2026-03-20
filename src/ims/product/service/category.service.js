@@ -1,32 +1,23 @@
-// services/category.service.js
 import Category from "../models/category.model.js";
 import { Op } from "sequelize";
 
 const categoryService = {
-  // ✅ Create a new category
-  async createCategory(data) {
+  async createCategory(data, company_id) {
+    data.company_id = company_id;
     return await Category.create(data);
   },
 
-  // ✅ Get all categories with filters, pagination, and exclude soft-deleted
-  async getAllCategories({ filters = {}, limit = 10, offset = 0 } = {}) {
-    const where = { is_active: true };
+  async getAllCategories({ filters = {}, limit = 10, offset = 0, company_id } = {}) {
+    const where = { is_active: true, company_id };
 
-    // 🔎 global search on category_name or description
     if (filters.search) {
       where[Op.or] = [
         { category_name: { [Op.like]: `%${filters.search}%` } },
         { description: { [Op.like]: `%${filters.search}%` } },
       ];
     }
-
-    // Exact match filters
-    if (filters.category_name) {
-      where.category_name = filters.category_name;
-    }
-    if (filters.status !== undefined) {
-      where.is_active = filters.status;
-    }
+    if (filters.category_name) where.category_name = filters.category_name;
+    if (filters.status !== undefined) where.is_active = filters.status;
 
     const { count, rows } = await Category.findAndCountAll({
       where,
@@ -43,40 +34,35 @@ const categoryService = {
     };
   },
 
-  // ✅ Get a category by ID
-  async getCategoryById(id) {
-    const category = await Category.findByPk(id);
+  async getCategoryById(id, company_id) {
+    const category = await Category.findOne({ where: { id, company_id } });
     if (!category) throw new Error("Category not found");
     return category;
   },
 
-  // ✅ Update a category
-  async updateCategory(id, data) {
-    const category = await Category.findByPk(id);
+  async updateCategory(id, data, company_id) {
+    const category = await Category.findOne({ where: { id, company_id } });
     if (!category) throw new Error("Category not found");
     await category.update(data);
     return category;
   },
 
-  // ✅ Soft delete a category
-  async deleteCategory(id) {
-    const category = await Category.findByPk(id);
+  async deleteCategory(id, company_id) {
+    const category = await Category.findOne({ where: { id, company_id } });
     if (!category) throw new Error("Category not found");
 
     category.is_active = false;
     await category.save();
-
     return { message: "Category soft deleted successfully" };
   },
 
-  // ✅ Find category by name (optional utility)
-  async findByName(category_name) {
-    return await Category.findOne({ where: { category_name } });
+  async findByName(category_name, company_id) {
+    return await Category.findOne({ where: { category_name, company_id } });
   },
 
-  // ✅ Get the last category (optional for auto ID/code generation)
-  async getLastCategory() {
+  async getLastCategory(company_id) {
     return await Category.findOne({
+      where: { company_id },
       order: [["createdAt", "DESC"]],
     });
   },

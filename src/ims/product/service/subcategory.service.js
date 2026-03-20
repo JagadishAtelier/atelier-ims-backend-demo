@@ -17,86 +17,100 @@ const subcategoryService = {
   },
 
   // ✅ Get all subcategories with filters, pagination, and exclude soft-deleted
-  async getAllSubcategories({ filters = {}, limit = 10, offset = 0 } = {}) {
-    const where = { is_active: true };
+async getAllSubcategories({ filters = {}, limit = 10, offset = 0, company_id } = {}) {
+  const where = { 
+    is_active: true,
+    company_id // ✅ ADD THIS ONLY
+  };
 
-    if (filters.search) {
-      where[Op.or] = [
-        { subcategory_name: { [Op.like]: `%${filters.search}%` } },
-        { description: { [Op.like]: `%${filters.search}%` } },
-      ];
-    }
+  if (filters.search) {
+    where[Op.or] = [
+      { subcategory_name: { [Op.like]: `%${filters.search}%` } },
+      { description: { [Op.like]: `%${filters.search}%` } },
+    ];
+  }
 
-    if (filters.subcategory_name) where.subcategory_name = filters.subcategory_name;
-    if (filters.category_id) where.category_id = filters.category_id;
-    if (filters.status !== undefined) where.is_active = filters.status;
+  if (filters.subcategory_name) where.subcategory_name = filters.subcategory_name;
+  if (filters.category_id) where.category_id = filters.category_id;
+  if (filters.status !== undefined) where.is_active = filters.status;
 
-    const { count, rows } = await Subcategory.findAndCountAll({
-      where,
-      limit,
-      offset,
-      order: [["createdAt", "DESC"]],
-      raw: true,
-    });
+  const { count, rows } = await Subcategory.findAndCountAll({
+    where,
+    limit,
+    offset,
+    order: [["createdAt", "DESC"]],
+    raw: true,
+  });
 
-    // Fetch category names separately and merge
-    const categoryIds = [...new Set(rows.map(r => r.category_id))];
-    const categories = await Category.findAll({
-      where: { id: categoryIds },
-      attributes: ["id", "category_name"],
-      raw: true,
-    });
+  // (your existing category mapping stays SAME ✅)
+  const categoryIds = [...new Set(rows.map(r => r.category_id))];
+  const categories = await Category.findAll({
+    where: { id: categoryIds },
+    attributes: ["id", "category_name"],
+    raw: true,
+  });
 
-    const dataWithCategoryName = rows.map(sub => {
-      const category = categories.find(c => c.id === sub.category_id);
-      return {
-        ...sub,
-        category_name: category ? category.category_name : null,
-      };
-    });
-
+  const dataWithCategoryName = rows.map(sub => {
+    const category = categories.find(c => c.id === sub.category_id);
     return {
-      total: count,
-      page: Math.floor(offset / limit) + 1,
-      limit,
-      data: dataWithCategoryName,
-    };
-  },
-
-  // Get subcategory by ID with category name (without associations)
-  async getSubcategoryById(id) {
-    const subcategory = await Subcategory.findByPk(id, { raw: true });
-    if (!subcategory) throw new Error("Subcategory not found");
-
-    const category = await Category.findByPk(subcategory.category_id, {
-      attributes: ["category_name"],
-      raw: true,
-    });
-
-    return {
-      ...subcategory,
+      ...sub,
       category_name: category ? category.category_name : null,
     };
-  },
+  });
+
+  return {
+    total: count,
+    page: Math.floor(offset / limit) + 1,
+    limit,
+    data: dataWithCategoryName,
+  };
+},
+
+  // Get subcategory by ID with category name (without associations)
+async getSubcategoryById(id, company_id) {
+  const subcategory = await Subcategory.findOne({
+    where: { id, company_id }, // ✅ ADD THIS
+    raw: true,
+  });
+
+  if (!subcategory) throw new Error("Subcategory not found");
+
+  const category = await Category.findByPk(subcategory.category_id, {
+    attributes: ["category_name"],
+    raw: true,
+  });
+
+  return {
+    ...subcategory,
+    category_name: category ? category.category_name : null,
+  };
+},
 
   // ✅ Update subcategory
-  async updateSubcategory(id, data) {
-    const subcategory = await Subcategory.findByPk(id);
-    if (!subcategory) throw new Error("Subcategory not found");
-    await subcategory.update(data);
-    return subcategory;
-  },
+async updateSubcategory(id, data, company_id) {
+  const subcategory = await Subcategory.findOne({
+    where: { id, company_id } // ✅ ADD THIS
+  });
+
+  if (!subcategory) throw new Error("Subcategory not found");
+
+  await subcategory.update(data);
+  return subcategory;
+},
 
   // ✅ Soft delete subcategory
-  async deleteSubcategory(id) {
-    const subcategory = await Subcategory.findByPk(id);
-    if (!subcategory) throw new Error("Subcategory not found");
+async deleteSubcategory(id, company_id) {
+  const subcategory = await Subcategory.findOne({
+    where: { id, company_id } // ✅ ADD THIS
+  });
 
-    subcategory.is_active = false;
-    await subcategory.save();
+  if (!subcategory) throw new Error("Subcategory not found");
 
-    return { message: "Subcategory soft deleted successfully" };
-  },
+  subcategory.is_active = false;
+  await subcategory.save();
+
+  return { message: "Subcategory soft deleted successfully" };
+},
 
   // ✅ Find by name (optional utility)
   async findByName(subcategory_name) {

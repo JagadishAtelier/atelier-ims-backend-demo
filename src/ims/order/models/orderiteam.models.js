@@ -55,6 +55,10 @@ const OrderItem = sequelize.define(
       defaultValue: 0.0,
       validate: { min: 0.0 },
     },
+      company_id: {
+    type: DataTypes.UUID,
+    allowNull: false, // you can make true if optional
+  },
     tax_amount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,

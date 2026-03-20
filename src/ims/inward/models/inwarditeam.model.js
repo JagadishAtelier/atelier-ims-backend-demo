@@ -74,6 +74,10 @@ const InwardItem = sequelize.define(
       type: DataTypes.STRING(50),
       allowNull: true,
     },
+      company_id: {
+    type: DataTypes.UUID,
+    allowNull: false, // you can make true if optional
+  },
   },
   {
     tableName: "inward_items",

@@ -20,6 +20,11 @@ const Category = sequelize.define("Category", {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
     },
+      // ✅ Add company_id for multi-tenancy
+  company_id: {
+    type: DataTypes.UUID,
+    allowNull: false, // you can make true if optional
+  },
     created_by: {
     type: DataTypes.UUID,
     allowNull: true,

@@ -15,6 +15,10 @@ const BillingItem = sequelize.define("BillingItem", {
   total_price: { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0.0 },
   discount: { type: DataTypes.DECIMAL(10, 2), allowNull: true, defaultValue: 0.0 },
   tax: { type: DataTypes.DECIMAL(10, 2), allowNull: true, defaultValue: 0.0 },
+    company_id: {
+    type: DataTypes.UUID,
+    allowNull: false, // you can make true if optional
+  },
 }, {
   tableName: "billing_items",
   timestamps: true,

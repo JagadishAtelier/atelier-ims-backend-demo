@@ -4,25 +4,27 @@ import { createSubcategorySchema, updateSubcategorySchema } from "../dto/subcate
 
 const subcategoryController = {
   // ✅ Create Subcategory
-  async create(req, res) {
-    try {
-      const validatedData = createSubcategorySchema.parse(req.body);
+async create(req, res) {
+  try {
+    const validatedData = createSubcategorySchema.parse(req.body);
 
-      // Attach user info from token
-      if (req.user) {
-        validatedData.created_by = req.user.id;
-        validatedData.created_by_name = req.user.username || req.user.name;
-        validatedData.created_by_email = req.user.email;
-      }
+    if (req.user) {
+      validatedData.created_by = req.user.id;
+      validatedData.created_by_name = req.user.username || req.user.name;
+      validatedData.created_by_email = req.user.email;
 
-      const subcategory = await subcategoryService.createSubcategory(validatedData);
-      return res.status(201).json(subcategory);
-    } catch (err) {
-      return res.status(400).json({
-        error: err.errors || err.message,
-      });
+      // ✅ ADD THIS
+      validatedData.company_id = req.company_id;
     }
-  },
+
+    const subcategory = await subcategoryService.createSubcategory(validatedData);
+    return res.status(201).json(subcategory);
+  } catch (err) {
+    return res.status(400).json({
+      error: err.errors || err.message,
+    });
+  }
+},
 
   // ✅ Get All Subcategories
   async getAll(req, res) {
@@ -39,7 +41,12 @@ const subcategoryController = {
       if (category_id) filters.category_id = category_id;
       if (status !== undefined) filters.status = status;
 
-      const result = await subcategoryService.getAllSubcategories({ filters, limit, offset });
+const result = await subcategoryService.getAllSubcategories({
+  filters,
+  limit,
+  offset,
+  company_id: req.company_id // ✅ ADD THIS
+});
       return res.json(result);
     } catch (err) {
       return res.status(500).json({ error: err.message });
@@ -49,7 +56,10 @@ const subcategoryController = {
   // ✅ Get Subcategory by ID
   async getById(req, res) {
     try {
-      const subcategory = await subcategoryService.getSubcategoryById(req.params.id);
+const subcategory = await subcategoryService.getSubcategoryById(
+  req.params.id,
+  req.company_id // ✅ ADD THIS
+);
       if (!subcategory) {
         return res.status(404).json({ error: "Subcategory not found" });
       }
@@ -71,7 +81,11 @@ const subcategoryController = {
         validatedData.updated_by_email = req.user.email;
       }
 
-      const subcategory = await subcategoryService.updateSubcategory(req.params.id, validatedData);
+const subcategory = await subcategoryService.updateSubcategory(
+  req.params.id,
+  validatedData,
+  req.company_id // ✅ ADD THIS
+);
       if (!subcategory) {
         return res.status(404).json({ error: "Subcategory not found" });
       }
@@ -86,7 +100,10 @@ const subcategoryController = {
   // ✅ Delete Subcategory (soft delete)
   async delete(req, res) {
     try {
-      const subcategory = await subcategoryService.getSubcategoryById(req.params.id);
+const subcategory = await subcategoryService.getSubcategoryById(
+  req.params.id,
+  req.company_id // ✅ ADD THIS
+);
       if (!subcategory) {
         return res.status(404).json({ error: "Subcategory not found" });
       }

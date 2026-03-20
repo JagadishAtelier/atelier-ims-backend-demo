@@ -70,6 +70,10 @@ const Product = sequelize.define("Product", {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
     },
+      company_id: {
+    type: DataTypes.UUID,
+    allowNull: false, // you can make true if optional
+  },
     created_by: {
     type: DataTypes.UUID,
     allowNull: true,

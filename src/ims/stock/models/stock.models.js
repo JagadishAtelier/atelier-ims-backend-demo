@@ -52,6 +52,10 @@ const Stock = sequelize.define("Stock", {
         defaultValue: 0,
         validate: { min: 0 },
     },
+      company_id: {
+    type: DataTypes.UUID,
+    allowNull: false, // you can make true if optional
+  },
     customer_billing_quantity: {
         type: DataTypes.INTEGER,
         allowNull: false,
