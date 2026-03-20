@@ -68,10 +68,15 @@ const userController = {
     }
   },
 
-  async getUsers(req, res) {
-    const users = await userService.getUsers();
+async getUsers(req, res) {
+  try {
+    // Filter users by the company of the logged-in user
+    const users = await userService.getUsers(req.user.company_id);
     res.json(users);
-  },
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+},
 
   async getUserById(req, res) {
     try {

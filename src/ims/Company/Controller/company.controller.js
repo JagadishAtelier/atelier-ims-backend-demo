@@ -91,7 +91,7 @@ export const verifyOTPAndCreateCompany = async (req, res) => {
         email: email,
         password: hashedPassword,
         phone: phone,
-
+        company_id: company.id,
         created_by: company.id,
         created_by_name: company.company_name,
         created_by_email: company.email,

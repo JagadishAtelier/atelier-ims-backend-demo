@@ -9,6 +9,10 @@ const User = sequelize.define("User", {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
+  company_id: {
+  type: DataTypes.UUID,
+  allowNull: true,
+},
   role:{
     type: DataTypes.ENUM('Super Admin', 'Admin', 'Doctor', 'Patient', 'Nurse', 'Receptionist', 'Pharmacist', 'Lab Technician', 'Accountant' ),
     allowNull: false

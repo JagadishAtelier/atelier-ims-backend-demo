@@ -33,12 +33,16 @@ const userService = {
   /**
    * ✅ Get all active users (can extend later with pagination)
    */
-  async getUsers() {
-    return await User.findAll({
-      where: { is_active: true, deleted_by: null },
-      order: [["createdAt", "DESC"]],
-    });
-  },
+async getUsers(company_id) {
+  return await User.findAll({
+    where: { 
+      company_id,       // ✅ filter by company
+      is_active: true,  // only active users
+      deleted_by: null 
+    },
+    order: [["createdAt", "DESC"]],
+  });
+},
 
   /**
    * ✅ Get user by ID
@@ -80,6 +84,7 @@ const userService = {
       email: user.email,
       username: user.username,
       role: user.role,
+      company_id: user.company_id,
     },
     SECRET_KEY,
     { expiresIn: "7d" }
