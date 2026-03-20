@@ -6,35 +6,35 @@ import { Op } from "sequelize";
 
 const productService = {
   async createProduct(data) {
-  // ✅ Check if category exists (only if provided)
-  if (data.category_id) {
-    const categoryExists = await Category.findByPk(data.category_id);
-    if (!categoryExists) {
-      throw new Error("Category not found. Cannot create product.");
-    }
-  }
-
-  // ✅ Check if subcategory exists (if provided)
-  if (data.sub_category_id) {
-    const subcategoryExists = await Subcategory.findByPk(data.sub_category_id);
-    if (!subcategoryExists) {
-      throw new Error("Subcategory not found. Cannot create product.");
+    // ✅ Check if category exists (only if provided)
+    if (data.category_id) {
+      const categoryExists = await Category.findByPk(data.category_id);
+      if (!categoryExists) {
+        throw new Error("Category not found. Cannot create product.");
+      }
     }
 
-    // Optional: Check if subcategory belongs to the given category (only if both provided)
-    if (data.category_id && subcategoryExists.category_id !== data.category_id) {
-      throw new Error("Subcategory does not belong to the selected category.");
-    }
-  }
+    // ✅ Check if subcategory exists (if provided)
+    if (data.sub_category_id) {
+      const subcategoryExists = await Subcategory.findByPk(data.sub_category_id);
+      if (!subcategoryExists) {
+        throw new Error("Subcategory not found. Cannot create product.");
+      }
 
-  // ✅ Create product
-  return await Product.create(data);
-},
+      // Optional: Check if subcategory belongs to the given category (only if both provided)
+      if (data.category_id && subcategoryExists.category_id !== data.category_id) {
+        throw new Error("Subcategory does not belong to the selected category.");
+      }
+    }
+
+    // ✅ Create product
+    return await Product.create(data);
+  },
 
 
   // ✅ Get all products with filters, pagination, and exclude soft-deleted
-  async getAllProducts({ filters = {}, limit = 10, offset = 0 } = {}) {
-    const where = { is_active: true };
+  async getAllProducts({ filters = {}, limit = 10, offset = 0,company_id  } = {}) {
+    const where = { is_active: true, company_id };
 
     // 🔎 global search on product_name OR product_code
     if (filters.search) {
@@ -93,11 +93,15 @@ const productService = {
     };
   },
 
-  async getProductById(id) {
-    const product = await Product.findByPk(id);
+  async getProductById(id, company_id) {
+    const product = await Product.findOne({
+      where: { id, company_id } // ✅ IMPORTANT
+    });
+
     if (!product) throw new Error("Product not found");
 
     const category = await Category.findByPk(product.category_id, { raw: true });
+
     let subcategory = null;
     if (product.sub_category_id) {
       subcategory = await Subcategory.findByPk(product.sub_category_id, { raw: true });
@@ -110,15 +114,20 @@ const productService = {
     };
   },
 
-  async getProductByCode(product_code) {
-    const product = await Product.findOne({ where: { product_code } });
+  async getProductByCode(product_code, company_id) {
+    const product = await Product.findOne({
+      where: { product_code, company_id } // ✅ IMPORTANT
+    });
+
     if (!product) throw new Error("Product not found");
 
     const category = await Category.findByPk(product.category_id, { raw: true });
+
     let subcategory = null;
     if (product.sub_category_id) {
       subcategory = await Subcategory.findByPk(product.sub_category_id, { raw: true });
     }
+
     return {
       ...product.dataValues,
       category_name: category ? category.category_name : null,
@@ -126,9 +135,13 @@ const productService = {
     };
   },
 
-  async updateProduct(id, data) {
-    const product = await Product.findByPk(id);
+  async updateProduct(id, data, company_id) {
+    const product = await Product.findOne({
+      where: { id, company_id } // ✅ IMPORTANT
+    });
+
     if (!product) throw new Error("Product not found");
+
     await product.update(data);
     return product;
   },

@@ -4,30 +4,36 @@ import { createProductSchema, updateProductSchema } from "../dto/product.dto.js"
 
 const productController = {
   // ✅ Create Product
-  async create(req, res) {
+async create(req, res) {
   try {
     const validatedData = createProductSchema.parse(req.body);
 
-    // Attach user info from token
-    console.log('User info from token:', req.user); // Debugging line
+    // ✅ Attach company_id
+    if (req.company_id) {
+      validatedData.company_id = req.company_id;
+    }
+
+    // Attach user info
     if (req.user) {
       validatedData.created_by = req.user.id;
       validatedData.created_by_name = req.user.username;
       validatedData.created_by_email = req.user.email;
     }
 
-    // Auto-generate product code
-    const lastProduct = await productService.getLastProduct(); // new service function
+    const lastProduct = await productService.getLastProduct();
     let lastNumber = 0;
+
     if (lastProduct && lastProduct.product_code) {
       const match = lastProduct.product_code.match(/PNO(\d+)/);
       if (match) lastNumber = parseInt(match[1]);
     }
+
     const newCodeNumber = (lastNumber + 1).toString().padStart(5, '0');
     validatedData.product_code = `PNO${newCodeNumber}`;
 
     const product = await productService.createProduct(validatedData);
     return res.status(201).json(product);
+
   } catch (err) {
     return res.status(400).json({
       error: err.errors || err.message,
@@ -64,7 +70,12 @@ const productController = {
     if (brand) filters.brand = brand;
     if (product_code) filters.product_code = product_code; // ✅ NEW
 
-    const result = await productService.getAllProducts({ filters, limit, offset });
+const result = await productService.getAllProducts({
+  filters,
+  limit,
+  offset,
+  company_id: req.company_id // ✅ ADD THIS
+});
     return res.json(result);
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -75,7 +86,7 @@ const productController = {
   // ✅ Get Product by ID
   async getById(req, res) {
     try {
-      const product = await productService.getProductById(req.params.id);
+const product = await productService.getProductById(req.params.id, req.company_id);
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
@@ -120,7 +131,11 @@ const productController = {
       }
     }
 
-    const product = await productService.updateProduct(req.params.id, validatedData);
+const product = await productService.updateProduct(
+  req.params.id,
+  validatedData,
+  req.company_id
+);
     if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
@@ -150,8 +165,11 @@ const productController = {
     };
 
     // Use the correct service function
-    await productService.updateProduct(req.params.id, updateData);
-
+await productService.updateProduct(
+  req.params.id,
+  updateData,
+  req.company_id
+);
     return res.json({ message: "Product soft deleted successfully" });
   } catch (err) {
     console.error(err);
