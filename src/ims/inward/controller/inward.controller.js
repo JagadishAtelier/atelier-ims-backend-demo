@@ -13,7 +13,7 @@ const inwardController = {
         data.created_by_name = req.user.username || req.user.name;
         data.created_by_email = req.user.email;
       }
-
+data.company_id = req.company_id;
       const inward = await inwardService.createInwardWithItems(data);
       return res.status(201).json({
         message: "Inward created successfully",
@@ -37,6 +37,7 @@ const inwardController = {
         filters,
         limit,
         offset,
+        company_id: req.company_id, 
       });
 
       return res.json(result);
@@ -48,7 +49,7 @@ const inwardController = {
   // ✅ Get inward by ID (with items)
   async getById(req, res) {
     try {
-      const inward = await inwardService.getInwardById(req.params.id);
+      const inward = await inwardService.getInwardById(req.params.id,req.company_id);
       if (!inward) {
         return res.status(404).json({ error: "Inward not found" });
       }
@@ -72,7 +73,8 @@ const inwardController = {
 
       const inward = await inwardService.updateInwardWithItems(
         req.params.id,
-        data
+        data,
+        req.company_id
       );
 
       if (!inward) {
@@ -98,7 +100,8 @@ const inwardController = {
 
       const result = await inwardService.deleteInwardWithItems(
         req.params.id,
-        req.user || {}
+        req.user || {},
+        req.company_id
       );
 
       return res.json({

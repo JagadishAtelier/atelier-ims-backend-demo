@@ -25,7 +25,7 @@ const vendorController = {
       const newCodeNumber = (lastNumber + 1).toString().padStart(5, "0");
       validatedData.vendor_code = `VNO${newCodeNumber}`;
 
-      const vendor = await vendorService.createVendor(validatedData);
+      const vendor = await vendorService.createVendor(validatedData, req.company_id);
       return res.status(201).json(vendor);
     } catch (err) {
       return res.status(400).json({
@@ -50,7 +50,12 @@ const vendorController = {
       if (email) filters.email = email;
       if (phone) filters.phone = phone;
 
-      const result = await vendorService.getAllVendors({ filters, limit, offset });
+      const result = await vendorService.getAllVendors({
+  filters,
+  limit,
+  offset,
+  company_id: req.company_id
+});
       return res.json(result);
     } catch (err) {
       return res.status(500).json({ error: err.message });
@@ -60,7 +65,7 @@ const vendorController = {
   // ✅ Get Vendor by ID
   async getById(req, res) {
     try {
-      const vendor = await vendorService.getVendorById(req.params.id);
+      const vendor = await vendorService.getVendorById(req.params.id, req.company_id);
       if (!vendor) {
         return res.status(404).json({ error: "Vendor not found" });
       }
@@ -105,7 +110,11 @@ const vendorController = {
         }
       }
 
-      const vendor = await vendorService.updateVendor(req.params.id, validatedData);
+      const vendor = await vendorService.updateVendor(
+  req.params.id,
+  validatedData,
+  req.company_id
+);
       if (!vendor) {
         return res.status(404).json({ error: "Vendor not found" });
       }
@@ -121,7 +130,11 @@ const vendorController = {
   // ✅ Delete Vendor (Soft Delete)
   async delete(req, res) {
     try {
-      const vendor = await vendorService.getVendorById(req.params.id);
+      await vendorService.deleteVendor(
+  req.params.id,
+  req.user,
+  req.company_id
+);
       if (!vendor) {
         return res.status(404).json({ error: "Vendor not found" });
       }

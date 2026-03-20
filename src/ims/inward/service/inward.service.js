@@ -62,25 +62,35 @@ const inwardService = {
       let excessQuantity = 0;
 
       if (order) {
+        console.log("Finding OrderItem with:", {
+  order_id: data.order_id,
+  product_id: item.product_id,
+  company_id: data.company_id,
+});
         // Get corresponding order item
-        const orderItem = await OrderItem.findOne({
-          where: { order_id: data.order_id, product_id: item.product_id },
-          transaction: t,
-        });
+const orderItem = await OrderItem.findOne({
+  where: {
+    order_id: data.order_id,
+    product_id: item.product_id,
+    company_id: data.company_id, // ✅ IMPORTANT
+  },
+  transaction: t,
+});
 
-        if (!orderItem) {
-          throw new Error(`Order item for product ${product.name || product.product_name} not found`);
-        }
+if (!orderItem) {
+  console.warn("OrderItem not found, treating as excess:", item.product_id);
 
-        const pendingQuantity = Number(orderItem.pending_quantity || 0);
-        // How much of received quantity should reduce pending (can't reduce more than pending)
-        const reduceBy = Math.min(quantity, pendingQuantity);
-        // Excess is the part above pending
-        excessQuantity = Math.max(quantity - pendingQuantity, 0);
+  // Full quantity is excess
+  excessQuantity = quantity;
+} else {
+  const pendingQuantity = Number(orderItem.pending_quantity || 0);
 
-        // Update order item pending quantity safely
-        const newPendingQuantity = Math.max(pendingQuantity - reduceBy, 0);
-        await orderItem.update({ pending_quantity: newPendingQuantity }, { transaction: t });
+  const reduceBy = Math.min(quantity, pendingQuantity);
+  excessQuantity = Math.max(quantity - pendingQuantity, 0);
+
+  const newPendingQuantity = Math.max(pendingQuantity - reduceBy, 0);
+  await orderItem.update({ pending_quantity: newPendingQuantity }, { transaction: t });
+}
 
         // (Important) Do NOT rely on any potentially stale order.total_penning_quantity here — we'll recompute it after loop
       }
@@ -104,10 +114,13 @@ const inwardService = {
       });
 
       // 3️⃣ Update Stock Table (within transaction)
-      const stock = await Stock.findOne({
-        where: { product_id: item.product_id },
-        transaction: t,
-      });
+const stock = await Stock.findOne({
+  where: {
+    product_id: item.product_id,
+    company_id: data.company_id, // ✅ IMPORTANT
+  },
+  transaction: t,
+});
 
       if (stock) {
         stock.quantity = Number(stock.quantity || 0) + quantity;
@@ -122,6 +135,7 @@ const inwardService = {
             selling_price: product.selling_price,
             quantity,
             inward_quantity: quantity,
+            company_id: data.company_id,
           },
           { transaction: t }
         );
@@ -169,6 +183,8 @@ const inwardService = {
         created_by: data.created_by,
         created_by_name: data.created_by_name,
         created_by_email: data.created_by_email,
+
+        company_id: data.company_id,
       },
       { transaction: t }
     );
@@ -177,6 +193,7 @@ const inwardService = {
     const itemsWithInwardId = itemsToCreate.map((item) => ({
       ...item,
       inward_id: inward.id,
+      company_id: data.company_id,
     }));
     await InwardItem.bulkCreate(itemsWithInwardId, { transaction: t });
 
@@ -192,8 +209,8 @@ const inwardService = {
 
 
   // ✅ Get All Inwards with Filters + Pagination
-  async getAllInwards({ filters = {}, limit = 10, offset = 0 } = {}) {
-  const where = {};
+  async getAllInwards({ filters = {}, limit = 10, offset = 0,company_id } = {}) {
+  const where = {company_id};
 
   if (filters.inward_no) {
     where.inward_no = { [Op.like]: `%${filters.inward_no}%` };
@@ -255,16 +272,26 @@ const inwardService = {
 
 
   // ✅ Get Inward by ID
-  async getInwardById(id) {
-    return await Inward.findByPk(id, {
-      include: [{ model: InwardItem, as: "items" }],
-    });
+  async getInwardById(id,company_id) {
+  return await Inward.findOne({
+    where: {
+      id,
+      company_id, // ✅ FILTER
+    },
+    include: [{ model: InwardItem, as: "items" }],
+  });
   },
 
   // ✅ Update Inward with Items
-  async updateInwardWithItems(id, data) {
+  async updateInwardWithItems(id, data,company_id) {
   return await sequelize.transaction(async (t) => {
-    const inward = await Inward.findByPk(id, { transaction: t });
+  const inward = await Inward.findOne({
+  where: {
+    id,
+    company_id, // ✅ FILTER
+  },
+  transaction: t,
+});
     if (!inward) return null;
 
     // 1️⃣ Update Inward basic fields
@@ -328,7 +355,7 @@ const inwardService = {
 
         if (inward.order_id) {
           const orderItem = await OrderItem.findOne({
-            where: { order_id: inward.order_id, product_id: item.product_id },
+            where: { order_id: inward.order_id, product_id: item.product_id,company_id, },
             transaction: t,
           });
           if (!orderItem) throw new Error(`Order item for product ${product.name} not found`);
@@ -369,7 +396,7 @@ const inwardService = {
         });
 
         // Update stock table
-        const stock = await Stock.findOne({ where: { product_id: item.product_id }, transaction: t });
+        const stock = await Stock.findOne({ where: { product_id: item.product_id,company_id: data.company_id, }, transaction: t });
         if (stock) {
           stock.quantity += quantity;
           stock.inward_quantity += quantity;
@@ -383,6 +410,7 @@ const inwardService = {
               selling_price: product.selling_price,
               quantity,
               inward_quantity: quantity,
+              company_id: data.company_id, 
             },
             { transaction: t }
           );
@@ -414,8 +442,14 @@ const inwardService = {
 
   // ✅ Delete Inward with Items (soft delete)
   async deleteInwardWithItems(id, user) {
-    return await db.transaction(async (t) => {
-      const inward = await Inward.findByPk(id, { transaction: t });
+    return await sequelize.transaction(async (t) => {
+const inward = await Inward.findOne({
+  where: {
+    id,
+    company_id, // ✅ FILTER
+  },
+  transaction: t,
+});
       if (!inward) return null;
 
       // soft delete inward

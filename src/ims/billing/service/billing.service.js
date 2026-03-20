@@ -149,6 +149,7 @@ const billingService = {
     // 5️⃣ Create Billing (with inward_id JSON)
     const billing = await Billing.create(
       {
+        company_id: data.company_id,
         billing_no: billingNo,
         customer_name: data.customer_name,
         type: data.type,
@@ -176,6 +177,7 @@ const billingService = {
     const itemsWithBillingId = itemsToCreate.map((it) => ({
       ...it,
       billing_id: billing.id,
+      company_id: data.company_id,
     }));
 
     await BillingItem.bulkCreate(itemsWithBillingId, { transaction: t });
@@ -208,6 +210,9 @@ const billingService = {
     if (filters.billing_date) {
       where.billing_date = filters.billing_date;
     }
+    if (filters.company_id) {
+  where.company_id = filters.company_id;
+}
 
     const { count, rows } = await Billing.findAndCountAll({
       where,
@@ -219,6 +224,7 @@ const billingService = {
         {
           model: BillingItem,
           as: "items",
+          where: { company_id: filters.company_id }, 
           include: [
             {
               model: Product,
@@ -240,12 +246,15 @@ const billingService = {
 
   // ✅ Get Billing by ID
   // ✅ Get Billing by ID
-async getBillingById(id) {
-  return await Billing.findByPk(id, {
+async getBillingById(id, company_id) {
+  return await Billing.findOne({
+    where: { id, company_id }, // ✅ important
     include: [
       {
         model: BillingItem,
         as: "items",
+        where: { company_id }, // ✅ important
+        required: false,
         include: [
           {
             model: Product,
@@ -261,10 +270,11 @@ async getBillingById(id) {
 async updateBillingWithItems(id, data) {
     return await sequelize.transaction(async (t) => {
       // fetch existing billing and items
-      const billing = await Billing.findByPk(id, {
-        include: [{ model: BillingItem, as: "items" }],
-        transaction: t,
-      });
+const billing = await Billing.findOne({
+  where: { id, company_id: data.company_id }, // ✅ ADD THIS
+  include: [{ model: BillingItem, as: "items" }],
+  transaction: t,
+});
       if (!billing) return null;
 
       // Step 1: If billing has items and we will replace them, reverse their effects
@@ -442,7 +452,7 @@ async updateBillingWithItems(id, data) {
         }
 
         // bulk create new billing items
-        const itemsWithBillingId = itemsToCreate.map((it) => ({ ...it, billing_id: billing.id }));
+        const itemsWithBillingId = itemsToCreate.map((it) => ({ ...it, billing_id: billing.id,company_id: data.company_id, }));
         await BillingItem.bulkCreate(itemsWithBillingId, { transaction: t });
       } else {
         // if no items in payload, keep existing totals (unless user provided overrides)
@@ -490,24 +500,28 @@ async updateBillingWithItems(id, data) {
   },
 
   // ✅ Delete Billing (soft delete)
-  async deleteBilling(id, user) {
-    return await sequelize.transaction(async (t) => {
-      const billing = await Billing.findByPk(id, { transaction: t });
-      if (!billing) return null;
-
-      await billing.update(
-        {
-          is_active: false,
-          deleted_by: user.id || null,
-          deleted_by_name: user.username || user.name || null,
-          deleted_by_email: user.email || null,
-        },
-        { transaction: t }
-      );
-
-      return { message: "Billing soft deleted successfully" };
+async deleteBilling(id, user, company_id) {
+  return await sequelize.transaction(async (t) => {
+    const billing = await Billing.findOne({
+      where: { id, company_id }, // ✅ important
+      transaction: t,
     });
-  },
+
+    if (!billing) return null;
+
+    await billing.update(
+      {
+        is_active: false,
+        deleted_by: user.id || null,
+        deleted_by_name: user.username || user.name || null,
+        deleted_by_email: user.email || null,
+      },
+      { transaction: t }
+    );
+
+    return { message: "Billing soft deleted successfully" };
+  });
+}
 };
 
 export default billingService;

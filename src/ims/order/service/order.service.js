@@ -9,7 +9,7 @@ import { name } from 'ejs';
 const orderService = {
 
   // ✅ Create a new order
-  async createOrder(data, items = []) {
+  async createOrder(data, items = [],company_id) {
   const t = await sequelize.transaction();
 
   try {
@@ -29,7 +29,7 @@ const orderService = {
       const newNumber = (lastNumber + 1).toString().padStart(5, "0");
       data.po_no = `PO${newNumber}`;
     }
-
+data.company_id = company_id;
     // ✅ Initialize totals
     let totalAmount = 0;
     let totalQuantity = 0;
@@ -39,7 +39,10 @@ const orderService = {
     // ✅ Validate and calculate item totals before order creation
     if (items.length > 0) {
       for (const item of items) {
-        const product = await Product.findByPk(item.product_id, { transaction: t });
+        const product = await Product.findOne({
+          where: { id: item.product_id, company_id }, // ✅ restrict
+          transaction: t,
+        });
         if (!product) {
           throw new Error(`Invalid product_id: ${item.product_id}`);
         }
@@ -54,6 +57,7 @@ const orderService = {
         item.total_price = total_price;
         item.tax_amount = tax_amount;
         item.pending_quantity = quantity; // same as quantity initially
+        item.company_id = company_id;
 
         // Update order-level totals
         totalAmount += total_price;
@@ -79,6 +83,7 @@ const orderService = {
           {
             ...item,
             order_id: order.id,
+            company_id,
           },
           { transaction: t }
         );
@@ -88,15 +93,13 @@ const orderService = {
     // ✅ Commit transaction
     await t.commit();
 
-    // ✅ Fetch full order with vendor & items
-    const createdOrder = await Order.findByPk(order.id, {
+    return await Order.findOne({
+      where: { id: order.id, company_id }, // ✅ filter
       include: [
         { model: Vendor, as: "vendor" },
-        { model: OrderItem, as: "items", include: ["products"] },
+        { model: OrderItem, as: "items", where: { company_id }, required: false, include: ["products"] },
       ],
     });
-
-    return createdOrder;
   } catch (error) {
     await t.rollback();
     throw new Error(error.message || "Failed to create order");
@@ -105,8 +108,8 @@ const orderService = {
 
 
   // ✅ Get all orders with pagination and filters
-  async getAllOrders({ filters = {}, limit = 10, offset = 0 } = {}) {
-    const where = { is_active: true };
+  async getAllOrders({ filters = {}, limit = 10, offset = 0 ,company_id} = {}) {
+    const where = { is_active: true,company_id, };
 
     if (filters.status) where.status = filters.status;
     if (filters.vendor_id) where.vendor_id = filters.vendor_id;
@@ -121,7 +124,10 @@ const orderService = {
       where,
       include: [
         { model: Vendor, as: "vendor" },
-        { model: OrderItem, as: "items", include: ["products"] },
+        { model: OrderItem, as: "items", include: ["products"],
+          where: { company_id },
+          required: false,
+         },
       ],
       order: [["createdAt", "DESC"]],
       limit,
@@ -137,27 +143,35 @@ const orderService = {
   },
 
   // ✅ Get order by ID
-  async getOrderById(id) {
-    const order = await Order.findByPk(id, {
-      include: [
-        { model: Vendor, as: "vendor" },
-        { model: OrderItem, as: "items", include: ["products"] },
-      ],
-    });
+async getOrderById(id, company_id) {
+  const order = await Order.findOne({
+    where: { id, company_id }, // ✅ restrict
+    include: [
+      { model: Vendor, as: "vendor" },
+      {
+        model: OrderItem,
+        as: "items",
+        where: { company_id },
+        required: false,
+        include: ["products"],
+      },
+    ],
+  });
 
-    if (!order) throw new Error("Order not found");
-    return order;
-  },
+  if (!order) throw new Error("Order not found");
+  return order;
+},
 
   // ✅ Update order
-  async updateOrder(id, data, items = []) {
+  async updateOrder(id, data, items = [],company_id) {
   const t = await sequelize.transaction();
 
   try {
-    const order = await Order.findByPk(id, {
-      include: [{ model: OrderItem, as: "items" }],
-      transaction: t,
-    });
+const order = await Order.findOne({
+  where: { id, company_id }, // ✅
+  include: [{ model: OrderItem, as: "items" }],
+  transaction: t,
+});
     if (!order) throw new Error("Order not found");
 
     // ✅ Map existing items for quick lookup
@@ -175,7 +189,10 @@ const orderService = {
     const processedProductIds = new Set();
 
     for (const item of items) {
-      const product = await Product.findByPk(item.product_id, { transaction: t });
+const product = await Product.findOne({
+  where: { id: item.product_id, company_id }, // ✅
+  transaction: t,
+});
       if (!product) throw new Error(`Invalid product_id: ${item.product_id}`);
 
       const quantity = item.quantity || 0;
@@ -214,6 +231,7 @@ const orderService = {
             total_price,
             tax_amount,
             pending_quantity: quantity,
+            company_id,
           },
           { transaction: t }
         );
@@ -266,19 +284,22 @@ const orderService = {
 
 
   // ✅ Soft delete order
-  async deleteOrder(id, userInfo) {
-    const order = await Order.findByPk(id);
-    if (!order) throw new Error("Order not found");
+async deleteOrder(id, userInfo, company_id) {
+  const order = await Order.findOne({
+    where: { id, company_id }, // ✅
+  });
 
-    await order.update({
-      is_active: false,
-      deleted_by: userInfo?.id || null,
-      deleted_by_name: userInfo?.name || null,
-      deleted_by_email: userInfo?.email || null,
-    });
+  if (!order) throw new Error("Order not found");
 
-    return { message: "Order soft deleted successfully" };
-  },
+  await order.update({
+    is_active: false,
+    deleted_by: userInfo?.id || null,
+    deleted_by_name: userInfo?.name || null,
+    deleted_by_email: userInfo?.email || null,
+  });
+
+  return { message: "Order soft deleted successfully" };
+},
 
   // ✅ Generate next PO number
   async getLastOrder() {
